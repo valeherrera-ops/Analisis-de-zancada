@@ -1,0 +1,3429 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Comparación del ángulo de rodilla en dos videos de zancada hacia adelante mediante MediaPipe Pose Landmarker." />
+  <title>Análisis Bioinstrumental de la Zancada</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #64748b;
+      --border: #dbe4ef;
+      --primary: #1f5f8b;
+      --primary-dark: #164766;
+      --soft: #eaf3f8;
+      --ok: #18794e;
+      --ok-bg: #e8f7ef;
+      --warn: #986600;
+      --warn-bg: #fff6d8;
+      --error: #b42318;
+      --error-bg: #feeceb;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.07);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .container {
+      width: min(1120px, calc(100% - 28px));
+      margin: 0 auto;
+    }
+
+    .hero {
+      color: #fff;
+      background: linear-gradient(135deg, #1f5f8b, #163f5b);
+      padding: 46px 0 40px;
+    }
+
+    .eyebrow {
+      margin: 0 0 6px;
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      opacity: .82;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      line-height: 1.08;
+    }
+
+    .hero h2 {
+      margin: 10px 0 0;
+      font-size: clamp(1.05rem, 2.4vw, 1.35rem);
+      font-weight: 650;
+      opacity: .92;
+    }
+
+    .hero p:last-child {
+      max-width: 850px;
+      margin: 16px 0 0;
+      opacity: .84;
+    }
+
+    main {
+      display: grid;
+      gap: 22px;
+      padding: 28px 0 44px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: clamp(18px, 3vw, 28px);
+    }
+
+    .section-kicker {
+      margin: 0 0 4px;
+      color: var(--primary);
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h2 {
+      margin-bottom: 18px;
+    }
+
+    .upload-box {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      padding: 18px;
+      border: 1px dashed #9fb6c8;
+      border-radius: 14px;
+      background: #f8fafc;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 17px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-dark);
+    }
+
+    .btn-secondary {
+      background: #fff;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .hidden-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: .93rem;
+    }
+
+    .instructions {
+      margin-top: 18px;
+      padding: 16px 18px;
+      border-radius: 12px;
+      background: var(--soft);
+    }
+
+    .instructions ul {
+      margin: 8px 0 0;
+      padding-left: 22px;
+    }
+
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .video-panel {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      background: #fbfdff;
+    }
+
+    .video-panel__head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .video-panel h3 {
+      margin-bottom: 2px;
+    }
+
+    .filename {
+      margin: 0;
+      color: var(--muted);
+      font-size: .86rem;
+      overflow-wrap: anywhere;
+    }
+
+    .badge {
+      display: inline-flex;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: #edf2f6;
+      color: #475569;
+      font-size: .75rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .badge.ok {
+      background: var(--ok-bg);
+      color: var(--ok);
+    }
+
+    .badge.warn {
+      background: var(--warn-bg);
+      color: var(--warn);
+    }
+
+    .video-wrap {
+      position: relative;
+      width: 100%;
+      overflow: hidden;
+      border-radius: 12px;
+      background: #0c131b;
+      min-height: 220px;
+      display: grid;
+      place-items: center;
+    }
+
+    video {
+      display: block;
+      width: 100%;
+      max-height: 520px;
+      background: #0c131b;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .empty-video {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-content: center;
+      color: #cbd5e1;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .video-wrap.has-video .empty-video {
+      display: none;
+    }
+
+    fieldset {
+      border: 0;
+      padding: 0;
+      margin: 14px 0 0;
+    }
+
+    legend {
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .leg-options {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .leg-option {
+      display: inline-flex;
+      gap: 7px;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: #fff;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    .progress {
+      margin-top: 16px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #f8fafc;
+    }
+
+    .progress-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-weight: 700;
+    }
+
+    .progress-track {
+      height: 9px;
+      background: #dfe7ef;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: var(--primary);
+      transition: width .12s linear;
+    }
+
+    .message {
+      margin-top: 14px;
+      padding: 13px 15px;
+      border-radius: 11px;
+      font-weight: 650;
+    }
+
+    .message.error {
+      background: var(--error-bg);
+      color: var(--error);
+      border: 1px solid #f0b6b1;
+    }
+
+    .message.warn {
+      background: var(--warn-bg);
+      color: var(--warn);
+      border: 1px solid #ebd076;
+    }
+
+    .message.ok {
+      background: var(--ok-bg);
+      color: var(--ok);
+      border: 1px solid #adddc4;
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .result-panel {
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      padding: 16px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: .82rem;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 5px;
+      color: var(--primary-dark);
+      font-size: clamp(1.6rem, 4vw, 2.3rem);
+      line-height: 1.05;
+    }
+
+    .quality {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    .frame {
+      margin-top: 14px;
+      overflow: hidden;
+      border-radius: 12px;
+      background: #0c131b;
+    }
+
+    .frame canvas {
+      display: block;
+      width: 100%;
+      max-height: 520px;
+      object-fit: contain;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 650px;
+    }
+
+    th,
+    td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: right;
+    }
+
+    th:first-child,
+    td:first-child {
+      text-align: left;
+    }
+
+    th {
+      background: #f8fafc;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 390px;
+    }
+
+    .interpretation {
+      padding: 16px;
+      border-left: 4px solid var(--primary);
+      background: #f8fafc;
+      border-radius: 8px;
+    }
+
+    .formula {
+      margin: 14px 0;
+      padding: 14px;
+      border-radius: 10px;
+      background: #0f172a;
+      color: #fff;
+      font-family: "Courier New", monospace;
+      font-weight: 700;
+      text-align: center;
+      overflow-x: auto;
+    }
+
+    footer {
+      padding: 0 0 34px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    @media (max-width: 820px) {
+      .video-grid,
+      .result-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .chart-wrap {
+        height: 320px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .container {
+        width: min(100% - 18px, 1120px);
+      }
+
+      .card {
+        padding: 16px;
+      }
+
+      .upload-box,
+      .actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .metrics {
+        grid-template-columns: 1fr;
+      }
+
+      .video-wrap {
+        min-height: 190px;
+      }
+
+      .chart-wrap {
+        height: 285px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header class="hero">
+    <div class="container">
+      <p class="eyebrow">
+        Kinesiología · Análisis Bioinstrumental del Movimiento Humano
+      </p>
+
+      <h1>Análisis Bioinstrumental de la Zancada</h1>
+
+      <h2>
+        Comparación del ángulo de rodilla mediante análisis de dos videos
+      </h2>
+
+      <p>
+        La aplicación compara dos ejecuciones de una zancada hacia adelante.
+        MediaPipe estima cadera, rodilla y tobillo de la pierna seleccionada y
+        el navegador calcula el ángulo interno de rodilla sin utilizar
+        resultados predeterminados.
+      </p>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <section class="card">
+      <p class="section-kicker">Paso 1</p>
+      <h2>Cargar los dos videos</h2>
+
+      <div class="upload-box">
+
+        <input
+          id="twoVideosInput"
+          class="hidden-input"
+          type="file"
+          accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
+          multiple
+        />
+
+        <label class="btn btn-primary" for="twoVideosInput">
+          Cargar 2 videos
+        </label>
+
+        <span class="hint">
+          Selecciona exactamente dos archivos.
+        </span>
+
+      </div>
+
+      <div class="instructions">
+
+        <strong>Para obtener mejores resultados:</strong>
+
+        <ul>
+          <li>Grabe a la persona de perfil.</li>
+          <li>Mantenga todo el cuerpo visible.</li>
+          <li>Utilice buena iluminación.</li>
+          <li>Evite que otras personas aparezcan en el video.</li>
+          <li>Mantenga la cámara fija durante la grabación.</li>
+        </ul>
+
+      </div>
+    </section>
+
+    <section class="card">
+
+      <p class="section-kicker">Paso 2</p>
+
+      <h2>Videos y pierna a evaluar</h2>
+
+      <div class="video-grid">
+
+        <article class="video-panel">
+
+          <div class="video-panel__head">
+
+            <div>
+              <h3>Video 1</h3>
+              <p id="fileNameA" class="filename">Sin archivo</p>
+            </div>
+
+            <span id="statusA" class="badge">
+              Sin video
+            </span>
+
+          </div>
+
+          <div id="wrapA" class="video-wrap">
+
+            <video
+              id="videoA"
+              controls
+              playsinline
+              preload="metadata">
+            </video>
+
+            <canvas
+              id="overlayA"
+              class="overlay">
+            </canvas>
+
+            <div class="empty-video">
+              El Video 1 aparecerá aquí.
+            </div>
+
+          </div>
+
+          <fieldset>
+
+            <legend>
+              Pierna del Video 1
+            </legend>
+
+            <div class="leg-options">
+
+              <label class="leg-option">
+                <input
+                  type="radio"
+                  name="legA"
+                  value="right"
+                  checked
+                />
+                Derecha
+              </label>
+
+              <label class="leg-option">
+                <input
+                  type="radio"
+                  name="legA"
+                  value="left"
+                />
+                Izquierda
+              </label>
+
+            </div>
+
+          </fieldset>
+
+        </article>
+
+        <article class="video-panel">
+
+          <div class="video-panel__head">
+
+            <div>
+              <h3>Video 2</h3>
+              <p id="fileNameB" class="filename">
+                Sin archivo
+              </p>
+            </div>
+
+            <span id="statusB" class="badge">
+              Sin video
+            </span>
+
+          </div>
+
+          <div id="wrapB" class="video-wrap">
+
+            <video
+              id="videoB"
+              controls
+              playsinline
+              preload="metadata">
+            </video>
+
+            <canvas
+              id="overlayB"
+              class="overlay">
+            </canvas>
+
+            <div class="empty-video">
+              El Video 2 aparecerá aquí.
+            </div>
+
+          </div>
+
+          <fieldset>
+
+            <legend>
+              Pierna del Video 2
+            </legend>
+
+            <div class="leg-options">
+
+              <label class="leg-option">
+                <input
+                  type="radio"
+                  name="legB"
+                  value="right"
+                  checked
+                />
+                Derecha
+              </label>
+
+              <label class="leg-option">
+                <input
+                  type="radio"
+                  name="legB"
+                  value="left"
+                />
+                Izquierda
+              </label>
+
+            </div>
+
+          </fieldset>
+
+        </article>
+
+      </div>
+
+      <div class="actions">
+
+        <button
+          id="analyzeBtn"
+          class="btn btn-primary"
+          type="button"
+          disabled>
+          Analizar y comparar
+        </button>
+
+        <button
+          id="resetBtn"
+          class="btn btn-secondary"
+          type="button"
+          disabled>
+          Reiniciar análisis
+        </button>
+
+      </div>
+
+      <div
+        id="progressBox"
+        class="progress"
+        hidden>
+
+        <div class="progress-row">
+
+          <span id="progressText">
+            Analizando movimiento...
+          </span>
+
+          <span id="progressPercent">
+            0%
+          </span>
+
+        </div>
+
+        <div class="progress-track">
+          <div
+            id="progressBar"
+            class="progress-bar">
+          </div>
+        </div>
+
+      </div>
+
+      <div
+        id="message"
+        class="message"
+        hidden>
+      </div>
+
+    </section>
+
+    <section
+      id="resultsSection"
+      class="card"
+      hidden>
+
+      <p class="section-kicker">
+        Resultados
+      </p>
+
+      <h2>
+        Resultados de cada video
+      </h2>
+
+      <div class="result-grid">
+
+        <article class="result-panel">
+
+          <h3>
+            Video 1
+          </h3>
+
+          <div class="metrics">
+
+            <div class="metric">
+              <span>Ángulo mínimo</span>
+              <strong id="minA">—</strong>
+            </div>
+
+            <div class="metric">
+              <span>Ángulo máximo</span>
+              <strong id="maxA">—</strong>
+            </div>
+
+            <div class="metric">
+              <span>Rango angular</span>
+              <strong id="rangeA">—</strong>
+            </div>
+
+            <div class="metric">
+              <span>Máxima flexión</span>
+              <strong id="timeA">—</strong>
+            </div>
+
+          </div>
+
+          <p
+            id="qualityA"
+            class="quality">
+          </p>
+
+          <div class="frame">
+            <canvas id="frameA"></canvas>
+          </div>
+
+          <p
+            id="frameCaptionA"
+            class="quality">
+          </p>
+
+        </article>
+
+        <article class="result-panel">
+
+          <h3>
+            Video 2
+          </h3>
+
+          <div class="metrics">
+
+            <div class="metric">
+              <span>Ángulo mínimo</span>
+              <strong id="minB">—</strong>
+            </div>
+
+            <div class="metric">
+              <span>Ángulo máximo</span>
+              <strong id="maxB">—</strong>
+            </div>
+
+            <div class="metric">
+              <span>Rango angular</span>
+              <strong id="rangeB">—</strong>
+            </div>
+
+            <div class="metric">
+              <span>Máxima flexión</span>
+              <strong id="timeB">—</strong>
+            </div>
+
+          </div>
+
+          <p
+            id="qualityB"
+            class="quality">
+          </p>
+
+          <div class="frame">
+            <canvas id="frameB"></canvas>
+          </div>
+
+          <p
+            id="frameCaptionB"
+            class="quality">
+          </p>
+
+        </article>
+
+      </div>
+
+    </section>
+
+    <section
+      id="comparisonSection"
+      class="card"
+      hidden>
+
+      <p class="section-kicker">
+        Comparación
+      </p>
+
+      <h2>
+        Comparación cuantitativa
+      </h2>
+
+      <div class="table-wrap">
+
+        <table>
+
+          <thead>
+
+            <tr>
+              <th>Variable</th>
+              <th>Video 1</th>
+              <th>Video 2</th>
+              <th>Diferencia Video 2 − Video 1</th>
+            </tr>
+
+          </thead>
+
+          <tbody>
+
+            <tr>
+              <td>Ángulo mínimo</td>
+              <td id="cMinA"></td>
+              <td id="cMinB"></td>
+              <td id="dMin"></td>
+            </tr>
+
+            <tr>
+              <td>Ángulo máximo</td>
+              <td id="cMaxA"></td>
+              <td id="cMaxB"></td>
+              <td id="dMax"></td>
+            </tr>
+
+            <tr>
+              <td>Rango angular</td>
+              <td id="cRangeA"></td>
+              <td id="cRangeB"></td>
+              <td id="dRange"></td>
+            </tr>
+
+            <tr>
+              <td>Momento de máxima flexión</td>
+              <td id="cTimeA"></td>
+              <td id="cTimeB"></td>
+              <td id="dTime"></td>
+            </tr>
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+    </section>
+
+    <section
+      id="chartSection"
+      class="card"
+      hidden>
+
+      <p class="section-kicker">
+        Curvas temporales
+      </p>
+
+      <h2>
+        Ángulo de rodilla a lo largo del movimiento
+      </h2>
+
+      <div class="chart-wrap">
+        <canvas id="comparisonChart"></canvas>
+      </div>
+
+      <p class="hint">
+        Los puntos destacados corresponden al menor ángulo detectado
+        en cada video. Los frames con detección insuficiente se excluyen
+        y no se reemplazan con valores inventados.
+      </p>
+
+    </section>
+
+    <section
+      id="interpretationSection"
+      class="card"
+      hidden>
+
+      <p class="section-kicker">
+        Síntesis
+      </p>
+
+      <h2>
+        Interpretación de resultados
+      </h2>
+
+      <div
+        id="interpretation"
+        class="interpretation">
+      </div>
+
+      <p
+        class="hint"
+        style="margin-top:14px;">
+
+        La comparación es descriptiva.
+        La aplicación no clasifica la ejecución como correcta,
+        incorrecta, normal, anormal o patológica y no realiza
+        diagnóstico clínico.
+
+      </p>
+
+    </section>
+
+    <section class="card">
+
+      <p class="section-kicker">
+        Método
+      </p>
+
+      <h2>
+        ¿Cómo se calcula el ángulo?
+      </h2>
+
+      <p>
+        Para la pierna seleccionada se utilizan cadera, rodilla
+        y tobillo. El vértice es la rodilla. Se forman los vectores
+        rodilla→cadera y rodilla→tobillo y se aplica producto punto.
+      </p>
+
+      <div class="formula">
+        θ = arccos[(u · v) / (|u| |v|)]
+      </div>
+
+      <p>
+        Con esta convención, una rodilla cercana a la extensión
+        tiene un ángulo próximo a 180°. A mayor flexión, el ángulo
+        interno disminuye, por lo que el menor ángulo corresponde
+        al momento de máxima flexión detectada.
+      </p>
+
+    </section>
+
+  </main>
+
+  <footer class="container">
+    Proyecto académico · Procesamiento del video en el navegador
+  </footer>
+
+  <script type="module">
+
+    const MP_VERSION = "1.0.1";
+
+    const MP_MODULE =
+      `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/+esm`;
+
+    const MP_WASM =
+      `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/wasm`;
+
+    const MODEL_URL =
+      "https://storage.googleapis.com/mediapipe-models/pose_landmarker/" +
+      "pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
+
+    const MIN_CONFIDENCE = 0.5;
+    const MIN_VALID_FRAMES = 5;
+    const MIN_VALID_RATIO = 0.20;
+    const FALLBACK_FPS = 20;
+
+    const LANDMARKS = {
+
+      left: {
+        hip: 23,
+        knee: 25,
+        ankle: 27,
+        label: "izquierda"
+      },
+
+      right: {
+        hip: 24,
+        knee: 26,
+        ankle: 28,
+        label: "derecha"
+      }
+
+    };
+
+    const $ = (id) =>
+      document.getElementById(id);
+
+    const ui = {
+
+      input: $("twoVideosInput"),
+
+      analyze: $("analyzeBtn"),
+
+      reset: $("resetBtn"),
+
+      progressBox: $("progressBox"),
+
+      progressText: $("progressText"),
+
+      progressPercent: $("progressPercent"),
+
+      progressBar: $("progressBar"),
+
+      message: $("message"),
+
+      results: $("resultsSection"),
+
+      comparison: $("comparisonSection"),
+
+      chartSection: $("chartSection"),
+
+      interpretationSection:
+        $("interpretationSection"),
+
+      interpretation:
+        $("interpretation"),
+
+      chart:
+        $("comparisonChart")
+
+    };
+
+    const items = {
+
+      A: {
+
+        key: "A",
+
+        video: $("videoA"),
+
+        overlay: $("overlayA"),
+
+        wrap: $("wrapA"),
+
+        fileName: $("fileNameA"),
+
+        status: $("statusA"),
+
+        frame: $("frameA"),
+
+        min: $("minA"),
+
+        max: $("maxA"),
+
+        range: $("rangeA"),
+
+        time: $("timeA"),
+
+        quality: $("qualityA"),
+
+        frameCaption:
+          $("frameCaptionA"),
+
+        objectUrl: null,
+
+        ready: false,
+
+        data: [],
+
+        summary: null
+
+      },
+
+      B: {
+
+        key: "B",
+
+        video: $("videoB"),
+
+        overlay: $("overlayB"),
+
+        wrap: $("wrapB"),
+
+        fileName: $("fileNameB"),
+
+        status: $("statusB"),
+
+        frame: $("frameB"),
+
+        min: $("minB"),
+
+        max: $("maxB"),
+
+        range: $("rangeB"),
+
+        time: $("timeB"),
+
+        quality: $("qualityB"),
+
+        frameCaption:
+          $("frameCaptionB"),
+
+        objectUrl: null,
+
+        ready: false,
+
+        data: [],
+
+        summary: null
+
+      }
+
+    };
+
+    let visionFileset = null;
+    let mpModule = null;
+    let chart = null;
+    let analyzing = false;
+
+    ui.input.addEventListener(
+      "change",
+      handleFiles
+    );
+
+    ui.analyze.addEventListener(
+      "click",
+      analyzeBoth
+    );
+
+    ui.reset.addEventListener(
+      "click",
+      resetAnalysis
+    );
+
+    for (const item of Object.values(items)) {
+
+      item.video.addEventListener(
+        "loadedmetadata",
+        () => {
+
+          item.ready =
+            Number.isFinite(
+              item.video.duration
+            ) &&
+            item.video.duration > 0;
+
+          syncCanvas(item);
+
+          item.status.textContent =
+            item.ready
+              ? "Video listo"
+              : "Error";
+
+          item.status.className =
+            item.ready
+              ? "badge ok"
+              : "badge warn";
+
+          updateButtons();
+
+        }
+      );
+
+      item.video.addEventListener(
+        "error",
+        () => {
+
+          item.ready = false;
+
+          item.status.textContent =
+            "No reproducible";
+
+          item.status.className =
+            "badge warn";
+
+          showMessage(
+
+            "Uno de los archivos no pudo ser reproducido por el navegador. " +
+            "Si es MOV, puede usar un códec no compatible. " +
+            "Intente exportarlo como MP4 H.264.",
+
+            "error"
+
+          );
+
+          updateButtons();
+
+        }
+      );
+
+    }
+
+    function handleFiles(event) {
+
+      const files =
+        [...(event.target.files || [])];
+
+      clearMessage();
+
+      if (files.length !== 2) {
+
+        showMessage(
+          "Debes seleccionar exactamente dos videos para realizar la comparación.",
+          "warn"
+        );
+
+        event.target.value = "";
+
+        return;
+
+      }
+
+      resetAnalysis(false);
+
+      loadFileIntoItem(
+        items.A,
+        files[0]
+      );
+
+      loadFileIntoItem(
+        items.B,
+        files[1]
+      );
+
+      ui.reset.disabled = false;
+
+    }
+
+    function loadFileIntoItem(
+      item,
+      file
+    ) {
+
+      if (item.objectUrl) {
+
+        URL.revokeObjectURL(
+          item.objectUrl
+        );
+
+      }
+
+      item.objectUrl =
+        URL.createObjectURL(file);
+
+      item.fileName.textContent =
+        file.name;
+
+      item.status.textContent =
+        "Cargando...";
+
+      item.status.className =
+        "badge";
+
+      item.wrap.classList.add(
+        "has-video"
+      );
+
+      item.ready = false;
+
+      item.video.src =
+        item.objectUrl;
+
+      item.video.load();
+
+    }
+
+    async function prepareMediaPipe() {
+
+      if (!mpModule) {
+
+        mpModule =
+          await import(
+            MP_MODULE
+          );
+
+      }
+
+      if (!visionFileset) {
+
+        visionFileset =
+          await mpModule
+            .FilesetResolver
+            .forVisionTasks(
+              MP_WASM
+            );
+
+      }
+
+    }
+
+    async function createDetector() {
+
+      await prepareMediaPipe();
+
+      const options = {
+
+        baseOptions: {
+          modelAssetPath:
+            MODEL_URL
+        },
+
+        runningMode:
+          "VIDEO",
+
+        numPoses:
+          1,
+
+        minPoseDetectionConfidence:
+          0.5,
+
+        minPosePresenceConfidence:
+          0.5,
+
+        minTrackingConfidence:
+          0.5,
+
+        outputSegmentationMasks:
+          false
+
+      };
+
+      try {
+
+        return await
+          mpModule
+            .PoseLandmarker
+            .createFromOptions(
+              visionFileset,
+              {
+
+                ...options,
+
+                baseOptions: {
+
+                  ...options.baseOptions,
+
+                  delegate:
+                    "GPU"
+
+                }
+
+              }
+            );
+
+      } catch (gpuError) {
+
+        console.warn(
+          "GPU no disponible; se utilizará CPU.",
+          gpuError
+        );
+
+        return await
+          mpModule
+            .PoseLandmarker
+            .createFromOptions(
+              visionFileset,
+              {
+
+                ...options,
+
+                baseOptions: {
+
+                  ...options.baseOptions,
+
+                  delegate:
+                    "CPU"
+
+                }
+
+              }
+            );
+
+      }
+
+    }
+
+    async function analyzeBoth() {
+
+      if (
+        analyzing ||
+        !items.A.ready ||
+        !items.B.ready
+      ) {
+
+        return;
+
+      }
+
+      analyzing = true;
+
+      clearMessage();
+
+      clearResultsOnly();
+
+      setControls(true);
+
+      ui.progressBox.hidden =
+        false;
+
+      setProgress(
+        0,
+        "Preparando MediaPipe..."
+      );
+
+      try {
+
+        await prepareMediaPipe();
+
+        const resultA =
+          await analyzeVideo(
+            items.A,
+            0,
+            50
+          );
+
+        const resultB =
+          await analyzeVideo(
+            items.B,
+            50,
+            100
+          );
+
+        items.A.summary =
+          resultA;
+
+        items.B.summary =
+          resultB;
+
+        renderResults(
+          items.A
+        );
+
+        renderResults(
+          items.B
+        );
+
+        renderComparison();
+
+        renderChart();
+
+        renderInterpretation();
+
+        ui.results.hidden =
+          false;
+
+        ui.comparison.hidden =
+          false;
+
+        ui.chartSection.hidden =
+          false;
+
+        ui.interpretationSection.hidden =
+          false;
+
+        setProgress(
+          100,
+          "Análisis completado"
+        );
+
+        showMessage(
+          "Comparación completada. Solo se utilizaron frames con detección válida.",
+          "ok"
+        );
+
+      } catch (error) {
+
+        console.error(
+          error
+        );
+
+        clearResultsOnly();
+
+        showMessage(
+
+          error.message ||
+          "No fue posible completar el análisis.",
+
+          error.name ===
+            "QualityError"
+            ? "warn"
+            : "error"
+
+        );
+
+      } finally {
+
+        analyzing =
+          false;
+
+        setControls(
+          false
+        );
+
+        setTimeout(
+          () => {
+
+            ui.progressBox.hidden =
+              true;
+
+          },
+          500
+        );
+
+      }
+
+    }
+
+    async function analyzeVideo(
+      item,
+      progressStart,
+      progressEnd
+    ) {
+
+      item.video.pause();
+
+      item.data = [];
+
+      clearCanvas(
+        item.overlay
+      );
+
+      clearCanvas(
+        item.frame
+      );
+
+      const detector =
+        await createDetector();
+
+      const leg =
+        getLeg(
+          item.key
+        );
+
+      const indices =
+        LANDMARKS[
+          leg
+        ];
+
+      let processed =
+        0;
+
+      let valid =
+        0;
+
+      let best =
+        null;
+
+      const processFrame =
+        (
+          time,
+          timestampMs
+        ) => {
+
+          processed += 1;
+
+          const result =
+            detector.detectForVideo(
+              item.video,
+              timestampMs
+            );
+
+          const pose =
+            result?.landmarks?.[0];
+
+          if (!pose) {
+
+            clearCanvas(
+              item.overlay
+            );
+
+            return;
+
+          }
+
+          const hipLm =
+            pose[
+              indices.hip
+            ];
+
+          const kneeLm =
+            pose[
+              indices.knee
+            ];
+
+          const ankleLm =
+            pose[
+              indices.ankle
+            ];
+
+          if (
+            ![
+              hipLm,
+              kneeLm,
+              ankleLm
+            ].every(
+              isReliable
+            )
+          ) {
+
+            clearCanvas(
+              item.overlay
+            );
+
+            return;
+
+          }
+
+          const landmarks = {
+
+            hip:
+              toPixel(
+                hipLm,
+                item.video
+              ),
+
+            knee:
+              toPixel(
+                kneeLm,
+                item.video
+              ),
+
+            ankle:
+              toPixel(
+                ankleLm,
+                item.video
+              )
+
+          };
+
+          const angle =
+            calculateAngle(
+              landmarks.hip,
+              landmarks.knee,
+              landmarks.ankle
+            );
+
+          if (
+            !Number.isFinite(
+              angle
+            )
+          ) {
+
+            return;
+
+          }
+
+          valid += 1;
+
+          const sample = {
+
+            time,
+
+            angle,
+
+            landmarks
+
+          };
+
+          item.data.push(
+            sample
+          );
+
+          drawPose(
+            item.overlay,
+            landmarks,
+            angle
+          );
+
+          if (
+            !best ||
+            angle <
+              best.angle
+          ) {
+
+            best =
+              sample;
+
+            captureFrame(
+              item,
+              landmarks,
+              angle
+            );
+
+          }
+
+        };
+
+      const reportProgress =
+        fraction => {
+
+          const value =
+            progressStart +
+            fraction *
+            (
+              progressEnd -
+              progressStart
+            );
+
+          setProgress(
+            value,
+            `Analizando Video ${item.key}...`
+          );
+
+        };
+
+      try {
+
+        if (
+          "requestVideoFrameCallback"
+          in HTMLVideoElement.prototype
+        ) {
+
+          await
+            analyzeUsingPresentedFrames(
+              item.video,
+              processFrame,
+              reportProgress
+            );
+
+        } else {
+
+          await
+            analyzeUsingSeeking(
+              item.video,
+              processFrame,
+              reportProgress
+            );
+
+        }
+
+      } finally {
+
+        detector.close?.();
+
+        item.video.pause();
+
+      }
+
+      const ratio =
+        processed
+          ? valid / processed
+          : 0;
+
+      if (
+        item.data.length <
+          MIN_VALID_FRAMES ||
+        ratio <
+          MIN_VALID_RATIO ||
+        !best
+      ) {
+
+        const err =
+          new Error(
+
+            `El Video ${item.key} no tiene suficientes frames válidos para completar el análisis. ` +
+            `Revise que la persona esté de perfil, completamente visible y con buena iluminación.`
+
+          );
+
+        err.name =
+          "QualityError";
+
+        throw err;
+
+      }
+
+      const angles =
+        item.data.map(
+          d => d.angle
+        );
+
+      const min =
+        Math.min(
+          ...angles
+        );
+
+      const max =
+        Math.max(
+          ...angles
+        );
+
+      const minSample =
+        item.data.reduce(
+          (a, b) =>
+            b.angle <
+            a.angle
+              ? b
+              : a
+        );
+
+      await seekVideo(
+        item.video,
+        minSample.time
+      );
+
+      drawPose(
+        item.overlay,
+        minSample.landmarks,
+        minSample.angle
+      );
+
+      return {
+
+        min,
+
+        max,
+
+        range:
+          max - min,
+
+        minTime:
+          minSample.time,
+
+        minSample,
+
+        processed,
+
+        valid,
+
+        ratio,
+
+        leg
+
+      };
+
+    }
+
+    function analyzeUsingPresentedFrames(
+      video,
+      processFrame,
+      reportProgress
+    ) {
+
+      return new Promise(
+        async (
+          resolve,
+          reject
+        ) => {
+
+          let callbackId =
+            null;
+
+          let lastTimestamp =
+            -1;
+
+          let done =
+            false;
+
+          const originalRate =
+            video.playbackRate;
+
+          const originalMuted =
+            video.muted;
+
+          const cleanup =
+            () => {
+
+              if (
+                callbackId !==
+                  null &&
+                video.cancelVideoFrameCallback
+              ) {
+
+                video.cancelVideoFrameCallback(
+                  callbackId
+                );
+
+              }
+
+              video.removeEventListener(
+                "ended",
+                onEnded
+              );
+
+              video.playbackRate =
+                originalRate;
+
+              video.muted =
+                originalMuted;
+
+            };
+
+          const finish =
+            () => {
+
+              if (done) {
+                return;
+              }
+
+              done =
+                true;
+
+              cleanup();
+
+              resolve();
+
+            };
+
+          const fail =
+            err => {
+
+              if (done) {
+                return;
+              }
+
+              done =
+                true;
+
+              cleanup();
+
+              reject(
+                err
+              );
+
+            };
+
+          const onEnded =
+            () => {
+
+              finish();
+
+            };
+
+          const frameCallback =
+            (
+              _now,
+              metadata
+            ) => {
+
+              if (done) {
+                return;
+              }
+
+              try {
+
+                const mediaTime =
+                  Number.isFinite(
+                    metadata?.mediaTime
+                  )
+                    ? metadata.mediaTime
+                    : video.currentTime;
+
+                const timestamp =
+                  Math.max(
+
+                    lastTimestamp + 1,
+
+                    Math.round(
+                      mediaTime * 1000
+                    )
+
+                  );
+
+                lastTimestamp =
+                  timestamp;
+
+                processFrame(
+                  mediaTime,
+                  timestamp
+                );
+
+                reportProgress(
+
+                  Math.min(
+                    1,
+                    mediaTime /
+                    video.duration
+                  )
+
+                );
+
+                if (
+                  video.ended ||
+                  mediaTime >=
+                    video.duration -
+                    0.01
+                ) {
+
+                  return finish();
+
+                }
+
+                callbackId =
+                  video
+                    .requestVideoFrameCallback(
+                      frameCallback
+                    );
+
+              } catch (e) {
+
+                fail(
+                  e
+                );
+
+              }
+
+            };
+
+          try {
+
+            video.pause();
+
+            await seekVideo(
+              video,
+              0
+            );
+
+            video.muted =
+              true;
+
+            video.playbackRate =
+              0.5;
+
+            video.addEventListener(
+              "ended",
+              onEnded,
+              {
+                once: true
+              }
+            );
+
+            callbackId =
+              video
+                .requestVideoFrameCallback(
+                  frameCallback
+                );
+
+            await video.play();
+
+          } catch (e) {
+
+            fail(
+              e
+            );
+
+          }
+
+        }
+      );
+
+    }
+
+    async function analyzeUsingSeeking(
+      video,
+      processFrame,
+      reportProgress
+    ) {
+
+      video.pause();
+
+      const step =
+        1 /
+        FALLBACK_FPS;
+
+      const total =
+        Math.max(
+          1,
+          Math.ceil(
+            video.duration /
+            step
+          )
+        );
+
+      let timestamp =
+        -1;
+
+      for (
+        let i = 0;
+        i <= total;
+        i += 1
+      ) {
+
+        const time =
+          Math.min(
+            i * step,
+            video.duration
+          );
+
+        await seekVideo(
+          video,
+          time
+        );
+
+        timestamp =
+          Math.max(
+
+            timestamp + 1,
+
+            Math.round(
+              time * 1000
+            )
+
+          );
+
+        processFrame(
+          time,
+          timestamp
+        );
+
+        reportProgress(
+          i / total
+        );
+
+        await new Promise(
+          requestAnimationFrame
+        );
+
+      }
+
+    }
+
+    function calculateAngle(
+      hip,
+      knee,
+      ankle
+    ) {
+
+      const ux =
+        hip.x -
+        knee.x;
+
+      const uy =
+        hip.y -
+        knee.y;
+
+      const vx =
+        ankle.x -
+        knee.x;
+
+      const vy =
+        ankle.y -
+        knee.y;
+
+      const dot =
+        ux * vx +
+        uy * vy;
+
+      const magU =
+        Math.hypot(
+          ux,
+          uy
+        );
+
+      const magV =
+        Math.hypot(
+          vx,
+          vy
+        );
+
+      if (
+        !magU ||
+        !magV
+      ) {
+
+        return NaN;
+
+      }
+
+      const cosine =
+        Math.max(
+
+          -1,
+
+          Math.min(
+
+            1,
+
+            dot /
+            (
+              magU *
+              magV
+            )
+
+          )
+
+        );
+
+      return (
+        Math.acos(
+          cosine
+        ) *
+        180 /
+        Math.PI
+      );
+
+    }
+
+    function isReliable(
+      lm
+    ) {
+
+      if (
+        !lm ||
+        !Number.isFinite(
+          lm.x
+        ) ||
+        !Number.isFinite(
+          lm.y
+        )
+      ) {
+
+        return false;
+
+      }
+
+      const visibility =
+        lm.visibility ??
+        1;
+
+      const presence =
+        lm.presence ??
+        1;
+
+      return (
+        visibility >=
+          MIN_CONFIDENCE &&
+        presence >=
+          MIN_CONFIDENCE
+      );
+
+    }
+
+    function toPixel(
+      lm,
+      video
+    ) {
+
+      return {
+
+        x:
+          lm.x *
+          video.videoWidth,
+
+        y:
+          lm.y *
+          video.videoHeight
+
+      };
+
+    }
+
+    function syncCanvas(
+      item
+    ) {
+
+      const w =
+        item.video.videoWidth;
+
+      const h =
+        item.video.videoHeight;
+
+      if (
+        !w ||
+        !h
+      ) {
+
+        return;
+
+      }
+
+      item.overlay.width =
+        w;
+
+      item.overlay.height =
+        h;
+
+      item.frame.width =
+        w;
+
+      item.frame.height =
+        h;
+
+    }
+
+    function drawPose(
+      canvas,
+      p,
+      angle
+    ) {
+
+      const ctx =
+        canvas.getContext(
+          "2d"
+        );
+
+      ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
+      drawPoseOnContext(
+        ctx,
+        p,
+        angle
+      );
+
+    }
+
+    function drawPoseOnContext(
+      ctx,
+      p,
+      angle
+    ) {
+
+      const r =
+        Math.max(
+          6,
+          ctx.canvas.width *
+          0.008
+        );
+
+      ctx.save();
+
+      ctx.strokeStyle =
+        "#28c7e8";
+
+      ctx.lineWidth =
+        Math.max(
+          4,
+          ctx.canvas.width *
+          0.0055
+        );
+
+      ctx.lineCap =
+        "round";
+
+      ctx.beginPath();
+
+      ctx.moveTo(
+        p.hip.x,
+        p.hip.y
+      );
+
+      ctx.lineTo(
+        p.knee.x,
+        p.knee.y
+      );
+
+      ctx.lineTo(
+        p.ankle.x,
+        p.ankle.y
+      );
+
+      ctx.stroke();
+
+      [
+        p.hip,
+        p.knee,
+        p.ankle
+      ].forEach(
+        pt => {
+
+          ctx.beginPath();
+
+          ctx.fillStyle =
+            "white";
+
+          ctx.arc(
+            pt.x,
+            pt.y,
+            r + 3,
+            0,
+            Math.PI * 2
+          );
+
+          ctx.fill();
+
+          ctx.beginPath();
+
+          ctx.fillStyle =
+            "#0f6f8f";
+
+          ctx.arc(
+            pt.x,
+            pt.y,
+            r,
+            0,
+            Math.PI * 2
+          );
+
+          ctx.fill();
+
+        }
+      );
+
+      const label =
+        `${angle.toFixed(1)}°`;
+
+      const fontSize =
+        Math.max(
+          18,
+          ctx.canvas.width *
+          0.025
+        );
+
+      ctx.font =
+        `700 ${fontSize}px system-ui, sans-serif`;
+
+      const width =
+        ctx.measureText(
+          label
+        ).width +
+        18;
+
+      const height =
+        fontSize +
+        12;
+
+      const x =
+        Math.min(
+
+          ctx.canvas.width -
+          width -
+          4,
+
+          Math.max(
+            4,
+            p.knee.x +
+            r +
+            10
+          )
+
+        );
+
+      const y =
+        Math.min(
+
+          ctx.canvas.height -
+          height -
+          4,
+
+          Math.max(
+            4,
+            p.knee.y -
+            height /
+            2
+          )
+
+        );
+
+      ctx.fillStyle =
+        "rgba(15,23,42,.82)";
+
+      ctx.fillRect(
+        x,
+        y,
+        width,
+        height
+      );
+
+      ctx.fillStyle =
+        "white";
+
+      ctx.textBaseline =
+        "middle";
+
+      ctx.fillText(
+        label,
+        x + 9,
+        y +
+        height /
+        2
+      );
+
+      ctx.restore();
+
+    }
+
+    function captureFrame(
+      item,
+      landmarks,
+      angle
+    ) {
+
+      syncCanvas(
+        item
+      );
+
+      const ctx =
+        item.frame
+          .getContext(
+            "2d"
+          );
+
+      ctx.clearRect(
+        0,
+        0,
+        item.frame.width,
+        item.frame.height
+      );
+
+      ctx.drawImage(
+        item.video,
+        0,
+        0,
+        item.frame.width,
+        item.frame.height
+      );
+
+      drawPoseOnContext(
+        ctx,
+        landmarks,
+        angle
+      );
+
+    }
+
+    function renderResults(
+      item
+    ) {
+
+      const s =
+        item.summary;
+
+      item.min.textContent =
+        `${s.min.toFixed(1)}°`;
+
+      item.max.textContent =
+        `${s.max.toFixed(1)}°`;
+
+      item.range.textContent =
+        `${s.range.toFixed(1)}°`;
+
+      item.time.textContent =
+        `${s.minTime.toFixed(2)} s`;
+
+      item.quality.textContent =
+        `Detección válida en ${s.valid} de ${s.processed} frames procesados (${Math.round(s.ratio * 100)}%). Los frames no válidos se ignoraron.`;
+
+      item.frameCaption.textContent =
+        `Captura del menor ángulo detectado: ${s.min.toFixed(1)}° a los ${s.minTime.toFixed(2)} s.`;
+
+      item.status.textContent =
+        s.ratio >=
+        0.6
+          ? "Análisis completado"
+          : "Detección parcial";
+
+      item.status.className =
+        s.ratio >=
+        0.6
+          ? "badge ok"
+          : "badge warn";
+
+    }
+
+    function renderComparison() {
+
+      const a =
+        items.A.summary;
+
+      const b =
+        items.B.summary;
+
+      const deg =
+        v =>
+          `${v.toFixed(1)}°`;
+
+      const sec =
+        v =>
+          `${v.toFixed(2)} s`;
+
+      const signedDeg =
+        v =>
+          `${v >= 0 ? "+" : ""}${v.toFixed(1)}°`;
+
+      const signedSec =
+        v =>
+          `${v >= 0 ? "+" : ""}${v.toFixed(2)} s`;
+
+      $("cMinA").textContent =
+        deg(
+          a.min
+        );
+
+      $("cMinB").textContent =
+        deg(
+          b.min
+        );
+
+      $("dMin").textContent =
+        signedDeg(
+          b.min -
+          a.min
+        );
+
+      $("cMaxA").textContent =
+        deg(
+          a.max
+        );
+
+      $("cMaxB").textContent =
+        deg(
+          b.max
+        );
+
+      $("dMax").textContent =
+        signedDeg(
+          b.max -
+          a.max
+        );
+
+      $("cRangeA").textContent =
+        deg(
+          a.range
+        );
+
+      $("cRangeB").textContent =
+        deg(
+          b.range
+        );
+
+      $("dRange").textContent =
+        signedDeg(
+          b.range -
+          a.range
+        );
+
+      $("cTimeA").textContent =
+        sec(
+          a.minTime
+        );
+
+      $("cTimeB").textContent =
+        sec(
+          b.minTime
+        );
+
+      $("dTime").textContent =
+        signedSec(
+          b.minTime -
+          a.minTime
+        );
+
+    }
+
+    function renderChart() {
+
+      if (chart) {
+
+        chart.destroy();
+
+      }
+
+      const a =
+        items.A.summary;
+
+      const b =
+        items.B.summary;
+
+      chart =
+        new Chart(
+          ui.chart,
+          {
+
+            type:
+              "line",
+
+            data: {
+
+              datasets: [
+
+                {
+
+                  label:
+                    "Video 1",
+
+                  data:
+                    items.A.data.map(
+                      d => ({
+                        x: d.time,
+                        y: d.angle
+                      })
+                    ),
+
+                  borderColor:
+                    "#1f5f8b",
+
+                  backgroundColor:
+                    "rgba(31,95,139,.08)",
+
+                  borderWidth:
+                    2,
+
+                  pointRadius:
+                    0,
+
+                  tension:
+                    .15
+
+                },
+
+                {
+
+                  label:
+                    "Video 2",
+
+                  data:
+                    items.B.data.map(
+                      d => ({
+                        x: d.time,
+                        y: d.angle
+                      })
+                    ),
+
+                  borderColor:
+                    "#b35c1e",
+
+                  backgroundColor:
+                    "rgba(179,92,30,.08)",
+
+                  borderWidth:
+                    2,
+
+                  pointRadius:
+                    0,
+
+                  tension:
+                    .15
+
+                },
+
+                {
+
+                  type:
+                    "scatter",
+
+                  label:
+                    "Mínimo Video 1",
+
+                  data: [
+                    {
+                      x:
+                        a.minTime,
+
+                      y:
+                        a.min
+                    }
+                  ],
+
+                  pointRadius:
+                    7,
+
+                  pointBackgroundColor:
+                    "#1f5f8b",
+
+                  pointBorderColor:
+                    "white",
+
+                  pointBorderWidth:
+                    2
+
+                },
+
+                {
+
+                  type:
+                    "scatter",
+
+                  label:
+                    "Mínimo Video 2",
+
+                  data: [
+                    {
+                      x:
+                        b.minTime,
+
+                      y:
+                        b.min
+                    }
+                  ],
+
+                  pointRadius:
+                    7,
+
+                  pointBackgroundColor:
+                    "#b35c1e",
+
+                  pointBorderColor:
+                    "white",
+
+                  pointBorderWidth:
+                    2
+
+                }
+
+              ]
+
+            },
+
+            options: {
+
+              responsive:
+                true,
+
+              maintainAspectRatio:
+                false,
+
+              interaction: {
+                mode:
+                  "nearest",
+                intersect:
+                  false
+              },
+
+              plugins: {
+
+                legend: {
+                  position:
+                    "top"
+                },
+
+                tooltip: {
+
+                  callbacks: {
+
+                    title(
+                      items
+                    ) {
+
+                      return (
+                        `Tiempo: ${items[0].parsed.x.toFixed(2)} s`
+                      );
+
+                    },
+
+                    label(
+                      ctx
+                    ) {
+
+                      return (
+                        `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}°`
+                      );
+
+                    }
+
+                  }
+
+                }
+
+              },
+
+              scales: {
+
+                x: {
+
+                  type:
+                    "linear",
+
+                  title: {
+                    display:
+                      true,
+                    text:
+                      "Tiempo (s)"
+                  }
+
+                },
+
+                y: {
+
+                  title: {
+                    display:
+                      true,
+                    text:
+                      "Ángulo de rodilla (°)"
+                  },
+
+                  suggestedMin:
+                    0,
+
+                  suggestedMax:
+                    180
+
+                }
+
+              }
+
+            }
+
+          }
+        );
+
+    }
+
+    function renderInterpretation() {
+
+      const a =
+        items.A.summary;
+
+      const b =
+        items.B.summary;
+
+      const diffMin =
+        b.min -
+        a.min;
+
+      const diffRange =
+        b.range -
+        a.range;
+
+      const relationMin =
+        Math.abs(
+          diffMin
+        ) <
+        0.05
+          ? "prácticamente igual al"
+          : diffMin > 0
+            ? "mayor que el"
+            : "menor que el";
+
+      const relationRange =
+        Math.abs(
+          diffRange
+        ) <
+        0.05
+          ? "prácticamente igual al"
+          : diffRange > 0
+            ? "mayor que el"
+            : "menor que el";
+
+      ui.interpretation.textContent =
+
+        `En el Video 1, el menor ángulo de rodilla detectado fue de ${a.min.toFixed(1)}° y el rango angular fue de ${a.range.toFixed(1)}°. ` +
+
+        `En el Video 2, el menor ángulo fue de ${b.min.toFixed(1)}° y el rango angular fue de ${b.range.toFixed(1)}°. ` +
+
+        `El ángulo mínimo del Video 2 fue ${relationMin} del Video 1, con una diferencia absoluta de ${Math.abs(diffMin).toFixed(1)}°. ` +
+
+        `El rango angular del Video 2 fue ${relationRange} del Video 1, con una diferencia absoluta de ${Math.abs(diffRange).toFixed(1)}°. ` +
+
+        `Esta comparación describe únicamente las mediciones obtenidas de los videos.`;
+
+    }
+
+    function resetAnalysis(
+      keepVideos = true
+    ) {
+
+      clearResultsOnly();
+
+      clearMessage();
+
+      setProgress(
+        0,
+        "Analizando movimiento..."
+      );
+
+      for (
+        const item
+        of Object.values(
+          items
+        )
+      ) {
+
+        item.data =
+          [];
+
+        item.summary =
+          null;
+
+        item.video.pause();
+
+        clearCanvas(
+          item.overlay
+        );
+
+        clearCanvas(
+          item.frame
+        );
+
+        if (
+          item.ready
+        ) {
+
+          try {
+
+            item.video.currentTime =
+              0;
+
+          } catch (_) {}
+
+          item.status.textContent =
+            "Video listo";
+
+          item.status.className =
+            "badge ok";
+
+        }
+
+      }
+
+      if (
+        !keepVideos
+      ) {
+
+        for (
+          const item
+          of Object.values(
+            items
+          )
+        ) {
+
+          item.ready =
+            false;
+
+          item.fileName.textContent =
+            "Sin archivo";
+
+          item.status.textContent =
+            "Sin video";
+
+          item.status.className =
+            "badge";
+
+          item.wrap.classList.remove(
+            "has-video"
+          );
+
+          if (
+            item.objectUrl
+          ) {
+
+            URL.revokeObjectURL(
+              item.objectUrl
+            );
+
+          }
+
+          item.objectUrl =
+            null;
+
+          item.video.removeAttribute(
+            "src"
+          );
+
+          item.video.load();
+
+        }
+
+      }
+
+      updateButtons();
+
+    }
+
+    function clearResultsOnly() {
+
+      ui.results.hidden =
+        true;
+
+      ui.comparison.hidden =
+        true;
+
+      ui.chartSection.hidden =
+        true;
+
+      ui.interpretationSection.hidden =
+        true;
+
+      if (
+        chart
+      ) {
+
+        chart.destroy();
+
+        chart =
+          null;
+
+      }
+
+    }
+
+    function getLeg(
+      key
+    ) {
+
+      return (
+        document.querySelector(
+          `input[name="leg${key}"]:checked`
+        )?.value ||
+        "right"
+      );
+
+    }
+
+    function setControls(
+      disabled
+    ) {
+
+      ui.input.disabled =
+        disabled;
+
+      ui.analyze.disabled =
+        disabled;
+
+      ui.reset.disabled =
+        disabled;
+
+      document
+        .querySelectorAll(
+          'input[type="radio"]'
+        )
+        .forEach(
+          r =>
+            r.disabled =
+              disabled
+        );
+
+    }
+
+    function updateButtons() {
+
+      ui.analyze.disabled =
+        analyzing ||
+        !(
+          items.A.ready &&
+          items.B.ready
+        );
+
+      ui.reset.disabled =
+        analyzing ||
+        !(
+          items.A.ready ||
+          items.B.ready
+        );
+
+    }
+
+    function setProgress(
+      value,
+      text
+    ) {
+
+      const v =
+        Math.max(
+          0,
+          Math.min(
+            100,
+            value
+          )
+        );
+
+      ui.progressBar.style.width =
+        `${v}%`;
+
+      ui.progressPercent.textContent =
+        `${Math.round(v)}%`;
+
+      ui.progressText.textContent =
+        text;
+
+    }
+
+    function showMessage(
+      text,
+      type
+    ) {
+
+      ui.message.textContent =
+        text;
+
+      ui.message.className =
+        `message ${type}`;
+
+      ui.message.hidden =
+        false;
+
+    }
+
+    function clearMessage() {
+
+      ui.message.hidden =
+        true;
+
+      ui.message.textContent =
+        "";
+
+    }
+
+    function clearCanvas(
+      canvas
+    ) {
+
+      const ctx =
+        canvas.getContext(
+          "2d"
+        );
+
+      ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
+    }
+
+    function seekVideo(
+      video,
+      time
+    ) {
+
+      return new Promise(
+        (
+          resolve,
+          reject
+        ) => {
+
+          const safeTime =
+            Math.min(
+
+              Math.max(
+                0,
+                time
+              ),
+
+              Math.max(
+                0,
+                video.duration ||
+                0
+              )
+
+            );
+
+          if (
+
+            Math.abs(
+              video.currentTime -
+              safeTime
+            ) <
+            0.001 &&
+
+            video.readyState >=
+            HTMLMediaElement
+              .HAVE_CURRENT_DATA
+
+          ) {
+
+            resolve();
+
+            return;
+
+          }
+
+          const done =
+            () => {
+
+              cleanup();
+
+              resolve();
+
+            };
+
+          const fail =
+            () => {
+
+              cleanup();
+
+              reject(
+                new Error(
+                  "No fue posible acceder a un frame del video."
+                )
+              );
+
+            };
+
+          const cleanup =
+            () => {
+
+              video.removeEventListener(
+                "seeked",
+                done
+              );
+
+              video.removeEventListener(
+                "error",
+                fail
+              );
+
+            };
+
+          video.addEventListener(
+            "seeked",
+            done,
+            {
+              once: true
+            }
+          );
+
+          video.addEventListener(
+            "error",
+            fail,
+            {
+              once: true
+            }
+          );
+
+          try {
+
+            video.currentTime =
+              safeTime;
+
+          } catch (e) {
+
+            cleanup();
+
+            reject(
+              e
+            );
+
+          }
+
+        }
+      );
+
+    }
+
+  </script>
+
+</body>
+  </html>
